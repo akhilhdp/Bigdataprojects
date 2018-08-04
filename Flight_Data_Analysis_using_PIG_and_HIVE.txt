@@ -1,0 +1,62 @@
+DelayedFlights = LOAD '/user/akhilhdp/DelayedFlights.csv' USING org.apache.pig.piggybank.storage.CSVExcelStorage(',','NO_MULTILINE','UNIX','SKIP_INPUT_HEADER');
+CancellationAnalysis = FOREACH DelayedFlights GENERATE (int)$1 AS year, (int)$2 AS month, (int)$10 AS flightnumber,(chararray)$17 AS origin, (chararray)$18 AS destination, (int)$22 AS cancelled, (chararray)$23 AS cancellationcode, (int)$24 AS diversion;
+DESCRIBE CancellationAnalysis;
+STORE CancellationAnalysis INTO 'akhil.hdpproject' USING org.apache.hive.hcatalog.pig.HCatStorer();
+
+CREATE TABLE `hdpproject`(
+  `year` int, 
+  `month` int, 
+  `flightnumber` int, 
+  `origin` string, 
+  `destination` string, 
+  `cancelled` int, 
+  `cancellationcode` string, 
+  `diversion` int)
+ROW FORMAT DELIMITED 
+  FIELDS TERMINATED BY ',' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.mapred.TextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  'hdfs://nn01.itversity.com:8020/apps/hive/warehouse/akhil.db/hdpproject'
+TBLPROPERTIES (
+  'numFiles'='2', 
+  'numRows'='0', 
+  'rawDataSize'='0', 
+  'totalSize'='49951790', 
+  'transient_lastDdlTime'='1533094167')
+
+Which month have seen the most number of cancellation due to bad weather?
+
+hive (akhil)> SELECT month, count(cancelled) AS cnt
+            > FROM hdpproject
+            > WHERE cancelled = 1 AND cancellationcode = 'B'
+            > GROUP BY month
+            > ORDER BY cnt desc
+            > LIMIT 1;
+
+
+Top 10 route(origin and dest) that has seen maximum diversions?
+
+hive (akhil)> SELECT origin, destination, count(diversion) AS cnt
+            > FROM hdpproject
+            > WHERE diversion = 1
+            > GROUP BY origin, destination
+            > ORDER BY cnt desc
+            > LIMIT 10;
+
+Top 5 visited destination in a year.
+
+hive (akhil)> SELECT year, destination, count(destination) AS cnt
+            > FROM hdpproject
+            > GROUP BY year, destination
+            > ORDER BY cnt desc
+            > LIMIT 5;
+
+
+
+
+
+
+
