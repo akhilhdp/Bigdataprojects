@@ -1,0 +1,44 @@
+#Dowload the Dataset:
+
+https://drive.google.com/open?id=0ByJLBTmJojjzNkRsZWJiY1VGc28
+
+#Winscp to transfer from local to itversity gateway machine local file system:
+#copyFromLocal to move the file into HDFS:
+
+hadoop fs -copyFromLocal demonetization-tweets.csv '/user/akhilhdp'
+
+#Launch PIG with tez execution engine:
+
+pig -x tez;
+
+#Loading data into PIG and transforming it for analysis:
+
+Dataload = LOAD '/user/akhilhdp/demonetization-tweets.csv' USING PigStorage(',');
+Dataload_trans = FOREACH Dataload GENERATE $0 AS ID, $1 AS tweet;
+DESCRIBE Dataload_trans;
+AFINN_DICT = LOAD '/user/akhilhdp/AFINN.txt' USING PigStorage('\t') AS (message: chararray, rating: int);
+DESCRIBE AFINN_DICT;
+Tweets = FOREACH Dataload_trans GENERATE ID, tweet, FLATTEN(TOKENIZE(tweet)) AS message;
+DESCRIBE Tweets;
+Tweets_AFINN = JOIN Tweets BY message LEFT OUTER, AFINN_DICT BY message;
+TweetsAFINN_Trans = FOREACH Tweets_AFINN GENERATE Tweets::message AS tweet, AFINN_DICT::rating AS rating;
+Tweetsrate_group = GROUP TweetsAFINN_Trans BY tweet;
+DESCRIBE Tweetsrate_group;
+AverageTweetRating = FOREACH Tweetsrate_group GENERATE group AS tweet, AVG(TweetsAFINN_Trans.rating) AS rating;
+DESCRIBE TweetsRating;
+
+#Analyzing the Tweets:
+
+#Calculating count of Favourable tweets:
+
+FavourableTweets = FILTER AverageTweetRating BY rating>=0;
+FavourableTweetsall = GROUP FavourableTweets ALL;
+FavourabelTweetscount = FOREACH FavourableTweetsall GENERATE COUNT_STAR(FavourableTweets);
+DUMP FavourabelTweetscount;
+
+#Calculating count of Unfavourable tweets:
+
+UnfavourableTweets = FILTER AverageTweetRating BY rating<0;
+UnfavourableTweetsALL = GROUP UnfavourableTweets ALL;
+UnfavourableTweetscount = FOREACH UnfavourableTweetsALL GENERATE COUNT_STAR(UnfavourableTweets);
+DUMP UnfavourableTweetscount;
